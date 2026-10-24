@@ -27,9 +27,8 @@ Supports both `x86_64` workstations (e.g., RTX PRO 6000 Blackwell) and `aarch64`
 `scripts/setup_env.sh` automatically detects the GPU compute capability, clones `third_party/` repositories, builds `pytorch3d` / `gsplat` from source for CUDA 12.8+, and installs `usd-core` so USD files are generated directly without requiring Isaac Sim on the capture/reconstruction machine.
 
 ```bash
-bash scripts/setup_env.sh                 # once, ~30-60 min
-hf auth login                             # after access is granted on both HF pages below
-bash scripts/download_checkpoints.sh
+bash scripts/setup_env.sh                 # once, ~20-40 min
+bash scripts/download_checkpoints.sh      # prompts for HF token if not logged in
 ```
 
 The checkpoints are gated. Request access first:

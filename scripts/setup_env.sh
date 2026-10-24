@@ -29,7 +29,7 @@ if [ -z "${CUDA_HOME:-}" ]; then
 fi
 export PATH="$CUDA_HOME/bin:$PATH"
 
-# Auto-detect GPU Compute Capability (e.g., 12.0 on RTX PRO 6000, 10.1/11.0 on Jetson Thor)
+# Auto-detect GPU Compute Capability (e.g., 12.0 on RTX PRO 6000, 10.1/11.0/12.0 on Jetson Thor)
 if [ -z "${TORCH_CUDA_ARCH_LIST:-}" ]; then
   CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -n1 | tr -d ' ' || true)"
   export TORCH_CUDA_ARCH_LIST="${CAP:-12.0}"
@@ -47,28 +47,41 @@ if [ ! -d "$TP/sam3/.git" ]; then
   git clone --depth 1 https://github.com/facebookresearch/sam3.git "$TP/sam3"
 fi
 
-pip install -U pip wheel ninja "setuptools<81"  # pkg_resources is still imported by SAM 3
+# Make xatlas optional in sam-3d-objects (only used for UV texture baking, not vertex-color meshes)
+python - "$TP/sam-3d-objects/sam3d_objects/model/backbone/tdfy_dit/utils/postprocessing_utils.py" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+if p.exists():
+    txt = p.read_text()
+    if "\nimport xatlas\n" in txt:
+        p.write_text(txt.replace("\nimport xatlas\n", "\ntry:\n    import xatlas\nexcept ImportError:\n    xatlas = None\n"))
+PY
+
+pip install -U pip wheel ninja cmake "setuptools<81" "huggingface_hub>=0.25.0"
 pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu128
 
-# SAM 3D Objects core deps (official list minus cu121 pins / unused heavy packages)
-grep -vE "^(torchaudio|spconv-cu121|nvidia-cuda-nvcc-cu12|nvidia-pyindex|cuda-python|xformers|bpy|sagemaker|auto_gptq|bitsandbytes|mosaicml-streaming|optimum|peft|sentence-transformers|librosa|pip-system-certs|timm|hdfs|pymongo|smplx|decord|av|wandb|jupyter|black|flake8|usort|autoflake|pdoc3|conda-pack|polyscope|pyrender|panda3d-gltf)==" \
-  "$TP/sam-3d-objects/requirements.txt" > "$TP/.req_sam3d.txt" || true
-pip install -r "$TP/.req_sam3d.txt"
-pip install spconv-cu126 "timm>=1.0.17" "numpy<2" || {
+# Install only the runtime packages actually imported by SAM 3D Objects (skips unused bloat & broken sdist builds like point-cloud-utils/xatlas)
+pip install \
+  astor async-timeout colorama easydict einops einops-exts ftfy fvcore \
+  hydra-core==1.3.2 igraph imageio lightning loguru matplotlib omegaconf \
+  opencv-python optree orjson plotly plyfile pycocotools pymeshfix pyvista \
+  roma rootutils safetensors scikit-image scipy seaborn "timm>=1.0.17" \
+  tqdm trimesh "numpy<2"
+pip install "git+https://github.com/microsoft/MoGe.git@a8c37341bc0325ca99b9d57981cc3bb2bd3e255b"
+
+pip install spconv-cu126 "numpy<2" || {
   echo "[setup] prebuilt spconv wheel unavailable on $ARCH; building cumm + spconv from source"
   export CUMM_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST"
   export SPCONV_DISABLE_JIT="1"
   pip install pccm ccimport
   pip install --no-build-isolation "git+https://github.com/FindDefinition/cumm.git"
   pip install --no-build-isolation "git+https://github.com/traveller59/spconv.git"
-  pip install "timm>=1.0.17" "numpy<2"
 }
 pip install --no-deps -e "$TP/sam-3d-objects"
 
-# pytorch3d / gsplat from source (for Blackwell / Jetson Thor)
+# pytorch3d / gsplat / nvdiffrast / kaolin from source (for Blackwell / Jetson Thor)
 pip install --no-build-isolation "git+https://github.com/facebookresearch/pytorch3d.git@75ebeeaea0908c5527e7b1e305fbc7681382db47"
 pip install --no-build-isolation "git+https://github.com/nerfstudio-project/gsplat.git@2323de5905d5e90e035f792fe65bad0fedd413e7"
-pip install "git+https://github.com/microsoft/MoGe.git@a8c37341bc0325ca99b9d57981cc3bb2bd3e255b" seaborn
 pip install --no-build-isolation "git+https://github.com/NVlabs/nvdiffrast.git"  # mesh hole filling
 pip install kaolin==0.18.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.7.1_cu128.html \
   || pip install --no-build-isolation "git+https://github.com/NVIDIAGameWorks/kaolin.git@v0.18.0"
