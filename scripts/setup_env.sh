@@ -60,7 +60,7 @@ PY
 pip install -U pip wheel ninja cmake "setuptools<81" "huggingface_hub>=0.25.0"
 pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu128
 
-# Install only the runtime packages actually imported by SAM 3D Objects (skips unused bloat & broken sdist builds like point-cloud-utils/xatlas)
+# Install only the runtime packages actually imported by SAM 3D Objects
 pip install \
   astor async-timeout colorama easydict einops einops-exts ftfy fvcore \
   hydra-core==1.3.2 igraph imageio lightning loguru matplotlib omegaconf \
@@ -69,14 +69,24 @@ pip install \
   tqdm trimesh "numpy<2"
 pip install "git+https://github.com/microsoft/MoGe.git@a8c37341bc0325ca99b9d57981cc3bb2bd3e255b"
 
-pip install spconv-cu126 "numpy<2" || {
+if ! pip install spconv-cu126 "numpy<2"; then
   echo "[setup] prebuilt spconv wheel unavailable on $ARCH; building cumm + spconv from source"
-  export CUMM_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST"
+  pip uninstall -y cumm spconv || true
+  pip install pccm ccimport pybind11 fire sympy
+  # cumm only accepts arches up to 9.0; 9.0+PTX embeds PTX that JIT-compiles on Blackwell (sm_100/101/110/120)
+  export CUMM_CUDA_ARCH_LIST="8.7;9.0+PTX"
+  export CUMM_DISABLE_JIT="1"
   export SPCONV_DISABLE_JIT="1"
-  pip install pccm ccimport
-  pip install --no-build-isolation "git+https://github.com/FindDefinition/cumm.git"
-  pip install --no-build-isolation "git+https://github.com/traveller59/spconv.git"
-}
+  if [ ! -d "$TP/cumm/.git" ]; then
+    git clone --depth 1 https://github.com/FindDefinition/cumm.git "$TP/cumm"
+  fi
+  cp -rn "$TP/cumm/include" "$TP/cumm/cumm/include" 2>/dev/null || true
+  if [ ! -d "$TP/spconv/.git" ]; then
+    git clone --depth 1 https://github.com/traveller59/spconv.git "$TP/spconv"
+  fi
+  pip install --no-build-isolation -e "$TP/cumm"
+  pip install --no-build-isolation -e "$TP/spconv"
+fi
 pip install --no-deps -e "$TP/sam-3d-objects"
 
 # pytorch3d / gsplat / nvdiffrast / kaolin from source (for Blackwell / Jetson Thor)

@@ -19,18 +19,29 @@ import shutil
 import sys
 from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download, login, snapshot_download
+from huggingface_hub.errors import GatedRepoError
 
 api = HfApi()
 try:
     user = api.whoami()
-    print(f"[hf] logged in as: {user.get('name')}")
+    print(f"[hf] currently logged in as: {user.get('name')}")
 except Exception:
     print("[hf] not logged in yet. Please enter your Hugging Face User Access Token:")
     login()
 
-print("[hf] downloading facebook/sam3 ...")
-hf_hub_download(repo_id="facebook/sam3", filename="sam3.pt")
-hf_hub_download(repo_id="facebook/sam3", filename="config.json")
+for attempt in range(2):
+    try:
+        print("[hf] downloading facebook/sam3 ...")
+        hf_hub_download(repo_id="facebook/sam3", filename="sam3.pt")
+        hf_hub_download(repo_id="facebook/sam3", filename="config.json")
+        break
+    except GatedRepoError:
+        if attempt == 0:
+            print("\n[hf] ERROR: The current Hugging Face account does not have approved access to facebook/sam3.")
+            print("[hf] Please enter a token for an authorized account (e.g., 'gibeom25'):")
+            login()
+        else:
+            raise
 
 sam3d_dir = Path(sys.argv[1])
 target_dir = sam3d_dir / "checkpoints" / "hf"
