@@ -1,0 +1,26 @@
+# Real2Sim pipeline settings (fields of real2sim.pipeline.PipelineConfig)
+
+# SAM 3 text prompts: concrete nouns for the objects on your table.
+# A generic prompt like "object" returns nothing with SAM 3 - name the things you expect.
+prompts: [cup, mug, bottle, can, box, bowl, fruit, toy, block, tool]
+confidence_threshold: 0.5
+min_area_frac: 0.0005      # of image area
+max_area_frac: 0.25        # larger masks (table, wall) are dropped
+
+max_depth: 2.0             # m
+min_object_points: 200
+plane_distance: 0.008      # RANSAC inlier threshold for the table plane, m
+on_plane_reject_frac: 0.8
+
+icp: true
+icp_min_fitness: 0.3
+snap_to_plane: true
+snap_max_gap: 0.03         # m
+max_faces: 20000
+sam3d_layout_postprocess: true
+seed: 42
+
+export_usd: true
+density: 500.0
+friction: 0.8
+table_margin: 0.3

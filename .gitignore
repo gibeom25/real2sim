@@ -1,0 +1,13 @@
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Third-party repos & checkpoints (cloned by setup_env.sh / download_checkpoints.sh)
+third_party/
+
+# Runtime logs & captured/generated data
+logs/
+data/
