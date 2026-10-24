@@ -14,20 +14,29 @@ done
 conda activate real2sim
 unset PYTHONPATH  # ROS Humble python3.10 paths break this py3.11 env
 
-python - "$ROOT/third_party/sam-3d-objects" <<'PY'
+python -c '
+import getpass
+import os
 import shutil
 import sys
 from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download, login, snapshot_download
 from huggingface_hub.errors import GatedRepoError
 
+def prompt_token():
+    tok = os.environ.get("HF_TOKEN", "").strip()
+    if not tok:
+        tok = getpass.getpass("Hugging Face Token (for authorized account, e.g. gibeom25): ").strip()
+    if tok:
+        login(token=tok)
+
 api = HfApi()
 try:
     user = api.whoami()
-    print(f"[hf] currently logged in as: {user.get('name')}")
+    print(f"[hf] currently logged in as: {user.get(\"name\")}")
 except Exception:
-    print("[hf] not logged in yet. Please enter your Hugging Face User Access Token:")
-    login()
+    print("[hf] not logged in yet.")
+    prompt_token()
 
 for attempt in range(2):
     try:
@@ -37,9 +46,9 @@ for attempt in range(2):
         break
     except GatedRepoError:
         if attempt == 0:
-            print("\n[hf] ERROR: The current Hugging Face account does not have approved access to facebook/sam3.")
-            print("[hf] Please enter a token for an authorized account (e.g., 'gibeom25'):")
-            login()
+            print("\n[hf] ERROR: Current account does not have approved access to facebook/sam3.")
+            print("[hf] Please enter a token for an authorized account (e.g. gibeom25):")
+            prompt_token()
         else:
             raise
 
@@ -58,4 +67,4 @@ if not (target_dir / "pipeline.yaml").exists():
 print("[hf] checkpoints ready at:", target_dir)
 for p in sorted(target_dir.iterdir()):
     print("  ", p.name)
-PY
+' "$ROOT/third_party/sam-3d-objects"

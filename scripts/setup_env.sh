@@ -84,8 +84,8 @@ if ! pip install spconv-cu126 "numpy<2"; then
   if [ ! -d "$TP/spconv/.git" ]; then
     git clone --depth 1 https://github.com/traveller59/spconv.git "$TP/spconv"
   fi
-  pip install --no-build-isolation -e "$TP/cumm"
-  pip install --no-build-isolation -e "$TP/spconv"
+  pip install --no-deps --no-build-isolation -e "$TP/cumm"
+  pip install --no-deps --no-build-isolation -e "$TP/spconv"
 fi
 pip install --no-deps -e "$TP/sam-3d-objects"
 
